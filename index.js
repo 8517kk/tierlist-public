@@ -205,9 +205,12 @@ function saveLevels() { fs.writeFileSync(dbPath, JSON.stringify(levels, null, 2)
 
 const verificationsPath = path.join(__dirname, 'verifications.json');
 let verifications = {};
-if (fs.existsSync(verificationsPath)) {
-    try { verifications = JSON.parse(fs.readFileSync(verificationsPath, 'utf-8')); } catch (e) {}
+function loadVerifications() {
+    if (fs.existsSync(verificationsPath)) {
+        try { verifications = JSON.parse(fs.readFileSync(verificationsPath, 'utf-8')); } catch (e) {}
+    }
 }
+loadVerifications();
 function saveVerifications() { fs.writeFileSync(verificationsPath, JSON.stringify(verifications, null, 2)); }
 
 const xpCooldowns = new Set();
@@ -231,10 +234,13 @@ app.use(express.static(__dirname));
 app.get('/', async (req, res) => {
     let playersData = [];
 
+    // Herlaad direct uit het JSON-bestand voor de nieuwste gegevens
+    loadVerifications();
+
     try {
         const guild = client.guilds.cache.first();
         if (guild) {
-            await guild.members.fetch();
+            await guild.members.fetch().catch(err => console.error('Error fetching guild members:', err));
             
             for (const [userId, vData] of Object.entries(verifications)) {
                 const member = guild.members.cache.get(userId);
@@ -270,7 +276,7 @@ app.get('/', async (req, res) => {
 
     playersData.sort((a, b) => b.totalPoints - a.totalPoints);
 
-    const botInvite = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
+    const discordInviteLink = "https://discord.gg/fsjMv8eaV";
 
     const html = `
     <!DOCTYPE html>
@@ -394,7 +400,7 @@ app.get('/', async (req, res) => {
             <img src="/image_fe8e77.png" alt="Goon Tiers Logo" class="header-logo">
             <h1>Goon Tiers</h1>
             <p class="sub">Official Competitive Minecraft PvP Leaderboard & Tierlist</p>
-            <a href="${botInvite}" target="_blank" class="invite-btn">🤖 Add Bot to Discord</a>
+            <a href="${discordInviteLink}" target="_blank" class="invite-btn">Join Discord</a>
         </header>
 
         <div class="container">
@@ -835,7 +841,6 @@ client.on('messageCreate', async (message) => {
     levels[userId].xp += xpGained;
 
     const currentLevel = levels[userId].level;
-    // 20x HARDER: 2000 XP per level requirement instead of 100
     const nextLevelXp = (currentLevel + 1) * 2000;
 
     if (levels[userId].xp >= nextLevelXp) {
@@ -914,6 +919,7 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
 
+            loadVerifications();
             if (!verifications[interaction.user.id]) {
                 return interaction.reply({
                     content: `❌ You must verify your Minecraft details before requesting a match!\nPlease head over to <#${VERIFY_CHANNEL_ID}> and click **Verify Account**.`,
@@ -1010,6 +1016,7 @@ client.on('interactionCreate', async (interaction) => {
 
         // LOOKUP IGN COMMAND
         if (interaction.commandName === 'ign') {
+            loadVerifications();
             const targetUser = interaction.options.getUser('user');
             const data = verifications[targetUser.id];
 
@@ -1099,6 +1106,7 @@ client.on('interactionCreate', async (interaction) => {
             const pulledMember = await guild.members.fetch(pulledPlayer.userId).catch(() => null);
             const usernameFormatted = pulledMember ? pulledMember.user.username : 'player';
 
+            loadVerifications();
             const userVerification = verifications[pulledPlayer.userId] || { ign: 'Not Provided', server: 'Not Provided' };
 
             const ticketChannel = await guild.channels.create({
@@ -1192,6 +1200,7 @@ client.on('interactionCreate', async (interaction) => {
 
         // ACCEPT MATCHMAKING BUTTON
         if (interaction.customId === 'accept_matchmaking_btn') {
+            loadVerifications();
             if (!verifications[interaction.user.id]) {
                 return interaction.reply({
                     content: `❌ You must verify your Minecraft details before accepting a match!\nPlease head over to <#${VERIFY_CHANNEL_ID}> and click **Verify Account**.`,
@@ -1289,6 +1298,7 @@ client.on('interactionCreate', async (interaction) => {
 
         // Request High Test Button -> Shows Dropdown Pop-up
         if (interaction.customId === 'request_high_test_btn') {
+            loadVerifications();
             if (!verifications[interaction.user.id]) {
                 return interaction.reply({
                     content: `You must verify your Minecraft details first!\nPlease head over to <#${VERIFY_CHANNEL_ID}> and click **Verify Account**.`,
@@ -1341,6 +1351,7 @@ client.on('interactionCreate', async (interaction) => {
 
         // Join Queue Button (Enforces Verification)
         if (interaction.customId === 'queue_join_btn') {
+            loadVerifications();
             if (!verifications[interaction.user.id]) {
                 return interaction.reply({
                     content: `You must verify your Minecraft details before joining the testing queue!\nPlease head over to <#${VERIFY_CHANNEL_ID}> and click **Verify Account**.`,
@@ -1466,6 +1477,7 @@ client.on('interactionCreate', async (interaction) => {
 
             const guild = interaction.guild;
             const usernameFormatted = interaction.user.username;
+            loadVerifications();
             const userVerification = verifications[interaction.user.id] || { ign: 'Not Provided', server: 'Not Provided' };
 
             const ticketChannel = await guild.channels.create({
@@ -1596,6 +1608,7 @@ client.on('interactionCreate', async (interaction) => {
 
             const resultsChannel = interaction.guild.channels.cache.get(RESULTS_CHANNEL_ID);
             if (resultsChannel && targetMember) {
+                loadVerifications();
                 const userIgn = (verifications[ownerId] && verifications[ownerId].ign) ? verifications[ownerId].ign : targetMember.user.username;
                 const skinBustUrl = `https://visage.surgeplay.com/bust/512/${encodeURIComponent(userIgn)}`;
 
@@ -1646,6 +1659,7 @@ client.on('interactionCreate', async (interaction) => {
             const categoryData = QUEUE_CATEGORIES[categoryKey] || QUEUE_CATEGORIES.axe;
             const categoryTierRoles = TIER_ROLES[categoryKey] || TIER_ROLES.axe;
 
+            loadVerifications();
             const userIgn = (verifications[ownerId] && verifications[ownerId].ign) ? verifications[ownerId].ign : (targetMember ? targetMember.user.username : 'Player');
             const testerIgn = (verifications[testerId] && verifications[testerId].ign) ? verifications[testerId].ign : (testerMember ? testerMember.user.username : 'Tester');
             const skinBustUrl = `https://visage.surgeplay.com/bust/512/${encodeURIComponent(userIgn)}`;
@@ -1696,6 +1710,7 @@ client.on('interactionCreate', async (interaction) => {
             const ign = interaction.fields.getTextInputValue('verify_ign').trim();
             const server = interaction.fields.getTextInputValue('verify_server').trim();
 
+            loadVerifications();
             verifications[interaction.user.id] = {
                 ign,
                 server,
