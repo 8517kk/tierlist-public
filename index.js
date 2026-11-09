@@ -1,4 +1,4 @@
-console.log('--> Starting Discord Bot script...');
+console.log('--> Starting Discord Bot script with Web Dashboard...');
 
 require('dotenv').config();
 const { 
@@ -23,6 +23,7 @@ const {
 const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
 
 process.on('unhandledRejection', error => console.error('Unhandled Promise Rejection:', error));
 process.on('uncaughtException', error => console.error('Uncaught Exception:', error));
@@ -81,9 +82,23 @@ const REGION_ROLES = {
     US: '1569032016685568022'
 };
 
-// Tier Lists
-const LOW_TIERS = ['LT5', 'HT5', 'LT4', 'HT4', 'LT3'];
-const HIGH_TIERS = ['HT3', 'LT2', 'HT2', 'LT1', 'HT1'];
+// Points mapping
+const TIER_POINTS = {
+    'LT5': 1,
+    'HT5': 2,
+    'LT4': 3,
+    'HT4': 4,
+    'LT3': 5,
+    'HT3': 6,
+    'LT2': 7,
+    'HT2': 8,
+    'LT1': 9,
+    'HT1': 10
+};
+
+// Tier Lists (LT3 is included in High Tiers)
+const LOW_TIERS = ['LT5', 'HT5', 'LT4', 'HT4'];
+const HIGH_TIERS = ['LT3', 'HT3', 'LT2', 'HT2', 'LT1', 'HT1'];
 
 // All Tier Roles Mappings by Gamemode
 const TIER_ROLES = {
@@ -175,10 +190,10 @@ const client = new Client({
     ]
 });
 
-// Temporary memory stores
+// Memory stores
 const pendingHighTierTests = new Map();
-const matchmakingCooldowns = new Map(); // User ID -> Timestamp
-const activeMatchmakingRequests = new Map(); // Message ID -> Request Details
+const matchmakingCooldowns = new Map();
+const activeMatchmakingRequests = new Map();
 
 // JSON Databases
 const dbPath = path.join(__dirname, 'levels.json');
@@ -204,6 +219,242 @@ const queueState = {
 };
 
 let isQueueSessionActive = false;
+
+// ==========================================
+// EXPRESS WEB SERVER (FOR RAILWAY)
+// ==========================================
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.static(__dirname));
+
+app.get('/', async (req, res) => {
+    let playersData = [];
+
+    try {
+        const guild = client.guilds.cache.first();
+        if (guild) {
+            await guild.members.fetch();
+            
+            for (const [userId, vData] of Object.entries(verifications)) {
+                const member = guild.members.cache.get(userId);
+                if (!member) continue;
+
+                let totalPoints = 0;
+                let userTiers = { axe: 'None', crystal: 'None', mace: 'None', sword: 'None' };
+
+                for (const [mode, tiersObj] of Object.entries(TIER_ROLES)) {
+                    for (const [tierName, roleId] of Object.entries(tiersObj)) {
+                        if (member.roles.cache.has(roleId)) {
+                            userTiers[mode] = tierName;
+                            totalPoints += (TIER_POINTS[tierName] || 0);
+                            break;
+                        }
+                    }
+                }
+
+                playersData.push({
+                    userId,
+                    username: member.user.username,
+                    ign: vData.ign,
+                    server: vData.server,
+                    avatar: member.user.displayAvatarURL({ extension: 'png', size: 128 }),
+                    tiers: userTiers,
+                    totalPoints
+                });
+            }
+        }
+    } catch (e) {
+        console.error('Error constructing website data:', e);
+    }
+
+    playersData.sort((a, b) => b.totalPoints - a.totalPoints);
+
+    const botInvite = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
+
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GOON TIERS - Official Tier List & Rankings</title>
+        <link href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --bg: #0f1115;
+                --card-bg: #161920;
+                --accent: #57f287;
+                --text: #ffffff;
+                --subtext: #9aa0a6;
+                --border: #242933;
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+                background-color: var(--bg);
+                color: var(--text);
+                font-family: 'Kanit', sans-serif;
+                padding-bottom: 50px;
+            }
+            header {
+                background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(15,17,21,1) 100%), url('/goon tiers pfp.jpg') center/cover no-repeat;
+                padding: 60px 20px;
+                text-align: center;
+                border-bottom: 2px solid var(--border);
+            }
+            .header-logo {
+                max-width: 140px;
+                margin-bottom: 15px;
+                filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.6));
+            }
+            h1 { font-size: 3rem; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+            p.sub { color: var(--subtext); margin-top: 5px; font-size: 1.1rem; }
+            .invite-btn {
+                display: inline-block;
+                margin-top: 20px;
+                background-color: #5865F2;
+                color: white;
+                padding: 12px 28px;
+                text-decoration: none;
+                font-weight: bold;
+                border-radius: 8px;
+                transition: 0.2s ease;
+                box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4);
+            }
+            .invite-btn:hover { background-color: #4752C4; transform: translateY(-2px); }
+            
+            .container {
+                max-width: 1100px;
+                margin: 40px auto;
+                padding: 0 20px;
+            }
+
+            .table-wrapper {
+                background-color: var(--card-bg);
+                border-radius: 12px;
+                border: 1px solid var(--border);
+                overflow-x: auto;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                text-align: left;
+            }
+            th, td {
+                padding: 16px 20px;
+                border-bottom: 1px solid var(--border);
+            }
+            th {
+                background-color: #1a1d26;
+                color: var(--subtext);
+                text-transform: uppercase;
+                font-size: 0.85rem;
+                letter-spacing: 1px;
+            }
+            tr:hover { background-color: #1c202a; }
+
+            .player-info {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .player-skin {
+                width: 36px;
+                height: 36px;
+                border-radius: 6px;
+            }
+
+            .tier-badge {
+                display: inline-block;
+                padding: 4px 10px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 0.85rem;
+                background: #232730;
+                color: #fff;
+            }
+            .tier-HT1 { background: #ff4757; color: white; }
+            .tier-LT1 { background: #ff6b81; color: white; }
+            .tier-HT2 { background: #ffa502; color: white; }
+            .tier-LT2 { background: #eccc68; color: black; }
+            .tier-HT3 { background: #2ed573; color: black; }
+            .tier-LT3 { background: #7bed9f; color: black; }
+            .tier-HT4 { background: #1e90ff; color: white; }
+            .tier-LT4 { background: #70a1ff; color: black; }
+            .tier-HT5 { background: #a4b0be; color: black; }
+            .tier-LT5 { background: #747d8c; color: white; }
+            .tier-None { opacity: 0.3; }
+
+            .pts { font-weight: 900; color: var(--accent); font-size: 1.1rem; }
+        </style>
+    </head>
+    <body>
+        <header>
+            <img src="/image_fe8e77.png" alt="Goon Tiers Logo" class="header-logo">
+            <h1>Goon Tiers</h1>
+            <p class="sub">Official Competitive Minecraft PvP Leaderboard & Tierlist</p>
+            <a href="${botInvite}" target="_blank" class="invite-btn">🤖 Add Bot to Discord</a>
+        </header>
+
+        <div class="container">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Player</th>
+                            <th>Server</th>
+                            <th>Axe</th>
+                            <th>Crystal</th>
+                            <th>Mace</th>
+                            <th>Sword</th>
+                            <th>Total Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${playersData.length > 0 ? playersData.map((p, index) => `
+                            <tr>
+                                <td><strong>#${index + 1}</strong></td>
+                                <td>
+                                    <div class="player-info">
+                                        <img src="https://visage.surgeplay.com/bust/64/${encodeURIComponent(p.ign)}" class="player-skin" onerror="this.src='${p.avatar}'">
+                                        <div>
+                                            <div style="font-weight: bold;">${p.ign}</div>
+                                            <div style="font-size: 0.8rem; color: var(--subtext);">@${p.username}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span style="color: var(--subtext);">${p.server}</span></td>
+                                <td><span class="tier-badge tier-${p.tiers.axe}">${p.tiers.axe}</span></td>
+                                <td><span class="tier-badge tier-${p.tiers.crystal}">${p.tiers.crystal}</span></td>
+                                <td><span class="tier-badge tier-${p.tiers.mace}">${p.tiers.mace}</span></td>
+                                <td><span class="tier-badge tier-${p.tiers.sword}">${p.tiers.sword}</span></td>
+                                <td><span class="pts">${p.totalPoints} pts</span></td>
+                            </tr>
+                        `).join('') : `
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 40px; color: var(--subtext);">No verified players found in database yet.</td>
+                            </tr>
+                        `}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    res.send(html);
+});
+
+app.listen(PORT, () => {
+    console.log(`--> Web Server running on port ${PORT}`);
+});
+
+// ==========================================
+// DISCORD BOT INITIALIZATION
+// ==========================================
 
 client.once('clientReady', async () => {
     console.log(`--> Logged in successfully as ${client.user.tag}`);
@@ -513,7 +764,7 @@ async function updateQueuePanel(ghostPingCategoryKey = null) {
 }
 
 // ==========================================
-// 1. LEVELING SYSTEM
+// 1. LEVELING SYSTEM (20x Harder)
 // ==========================================
 async function generateLevelCard(user, oldLevel, newLevel) {
     const width = 450;
@@ -584,7 +835,8 @@ client.on('messageCreate', async (message) => {
     levels[userId].xp += xpGained;
 
     const currentLevel = levels[userId].level;
-    const nextLevelXp = (currentLevel + 1) * 100;
+    // 20x HARDER: 2000 XP per level requirement instead of 100
+    const nextLevelXp = (currentLevel + 1) * 2000;
 
     if (levels[userId].xp >= nextLevelXp) {
         const oldLevel = currentLevel;
@@ -724,7 +976,7 @@ client.on('interactionCreate', async (interaction) => {
         if (interaction.commandName === 'hightestpanel') {
             const highEmbed = new EmbedBuilder()
                 .setTitle('High Tier Test Request')
-                .setDescription('If you currently hold a High Tier role (**HT3, LT2, HT2, LT1, HT1**), click the button below to request a High Tier re-test.')
+                .setDescription('If you currently hold a High Tier role (**LT3, HT3, LT2, HT2, LT1, HT1**), click the button below to request a High Tier re-test.')
                 .setColor(0xfee75c)
                 .setFooter({ text: 'Goon Tiers • High Tier Testing' });
 
@@ -865,7 +1117,7 @@ client.on('interactionCreate', async (interaction) => {
 
             const ticketEmbed = new EmbedBuilder()
                 .setTitle(`${categoryData.name} Tier Test`)
-                .setDescription(`Welcome <@${pulledPlayer.userId}>! Your test with <@${interaction.user.id}> is ready to start.\n\n**Tester Controls:**\n- Click **Close with Tier** to assign a new rank (LT5 to LT3) and close this ticket.\n- Click **Close** to discard without changing tiers.`)
+                .setDescription(`Welcome <@${pulledPlayer.userId}>! Your test with <@${interaction.user.id}> is ready to start.\n\n**Tester Controls:**\n- Click **Close with Tier** to assign a new rank (LT5 to HT4) and close this ticket.\n- Click **Close** to discard without changing tiers.`)
                 .addFields(
                     { name: 'Minecraft IGN:', value: `\`${userVerification.ign}\``, inline: true },
                     { name: 'Preferred Server:', value: `${userVerification.server}`, inline: true }
@@ -1207,7 +1459,7 @@ client.on('interactionCreate', async (interaction) => {
 
             if (!hasHighTierRole) {
                 return interaction.update({
-                    content: `❌ **Access Denied:** You do not hold a High Tier role (**HT3, LT2, HT2, LT1, HT1**) in **${categoryData.name}**. You cannot open a High Tier Test ticket.`,
+                    content: `❌ **Access Denied:** You do not hold a High Tier role (**LT3, HT3, LT2, HT2, LT1, HT1**) in **${categoryData.name}**. You cannot open a High Tier Test ticket.`,
                     components: []
                 });
             }
@@ -1232,7 +1484,7 @@ client.on('interactionCreate', async (interaction) => {
 
             const ticketEmbed = new EmbedBuilder()
                 .setTitle(`High Tier Test - ${categoryData.name}`)
-                .setDescription(`Welcome <@${interaction.user.id}>! You have requested a High Tier Test for **${categoryData.name}**.\n\nA <@&${categoryData.testerRole}> will be with you shortly.\n\n**Tester Controls:**\n- **Close with Tier:** Allows the tester to input score & assign high tier ranks (HT3 to HT1).\n- **Close:** Closes ticket without changes.`)
+                .setDescription(`Welcome <@${interaction.user.id}>! You have requested a High Tier Test for **${categoryData.name}**.\n\nA <@&${categoryData.testerRole}> will be with you shortly.\n\n**Tester Controls:**\n- **Close with Tier:** Allows the tester to input score & assign high tier ranks (LT3 to HT1).\n- **Close:** Closes ticket without changes.`)
                 .addFields(
                     { name: 'Minecraft IGN:', value: `\`${userVerification.ign}\``, inline: true },
                     { name: 'Preferred Server:', value: `${userVerification.server}`, inline: true }
