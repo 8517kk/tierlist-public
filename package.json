@@ -1,0 +1,14 @@
+{
+  "name": "tiertest-discord-bot",
+  "version": "1.0.0",
+  "description": "Discord Bot for Tier Testing with Arcane-style Leveling and Ticket System",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.65",
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7"
+  }
+}
