@@ -40,6 +40,15 @@ if (!TOKEN || !CLIENT_ID) {
 const LOGO_URL = "https://cdn.discordapp.com/attachments/1567609881488396359/1569424331186905160/egqh4gAAAAZJREFUAwDgGQdxG6llxAAAAABJRU5ErkJggg.png?ex=6af4b94f&is=6af367cf&hm=4ef063651d547829fa3c434bda76d642bed558630fbf3c9e3a6c789a7ecae945&";
 const BANNER_URL = "https://cdn.discordapp.com/attachments/1569030796600418354/1569833405884141630/banner.png?ex=6af4e4ca&is=6af3934a&hm=777ade49c6244b4c27157cb2ef75a61aaa9c72df2671754b40e75a4c708de8b2&";
 
+// Category Web Icons (Discord Emoji CDN URLs)
+const EMOJI_URLS = {
+    spear: 'https://cdn.discordapp.com/emojis/1569825730697760848.png',
+    axe: 'https://cdn.discordapp.com/emojis/1569064407273840640.png',
+    crystal: 'https://cdn.discordapp.com/emojis/1569064375682338936.png',
+    mace: 'https://cdn.discordapp.com/emojis/1569064343105048687.png',
+    sword: 'https://cdn.discordapp.com/emojis/1569064310301270188.png'
+};
+
 // Register Minecrafter Font
 const fontPath = path.join(__dirname, 'Minecrafter.Reg.ttf');
 if (fs.existsSync(fontPath)) {
@@ -106,6 +115,18 @@ const HIGH_TIERS = ['LT3', 'HT3', 'LT2', 'HT2', 'LT1', 'HT1'];
 
 // All Tier Roles Mappings by Gamemode
 const TIER_ROLES = {
+    spear: {
+        'LT5': '1569768568101543976',
+        'HT5': '1569768594282258454',
+        'LT4': '1569768619695411331',
+        'HT4': '1569768679690735759',
+        'LT3': '1569768871135547562',
+        'HT3': '1569768905461727295',
+        'LT2': '1569769017969877044',
+        'HT2': '1569769041801781390',
+        'LT1': '1569769100748660796',
+        'HT1': '1569769146068246680'
+    },
     axe: {
         'LT5': '1569091470802161905',
         'HT5': '1569091457183125546',
@@ -153,23 +174,17 @@ const TIER_ROLES = {
         'HT2': '1569091498966917274',
         'LT1': '1569091505032011838',
         'HT1': '1569091497008042194'
-    },
-    spear: {
-        'LT5': '1569768568101543976',
-        'HT5': '1569768594282258454',
-        'LT4': '1569768619695411331',
-        'HT4': '1569768679690735759',
-        'LT3': '1569768871135547562',
-        'HT3': '1569768905461727295',
-        'LT2': '1569769017969877044',
-        'HT2': '1569769041801781390',
-        'LT1': '1569769100748660796',
-        'HT1': '1569769146068246680'
     }
 };
 
 // Queue Category Configuration
 const QUEUE_CATEGORIES = {
+    spear: {
+        name: 'Spear',
+        testerRole: '1569770289859006464',
+        pingRole: '1569841303670366208',
+        emoji: '<:spear:1569825730697760848>'
+    },
     axe: {
         name: 'Axe',
         testerRole: '1569063236723155227',
@@ -193,12 +208,6 @@ const QUEUE_CATEGORIES = {
         testerRole: '1569062872804233368',
         pingRole: '1569062857545351220',
         emoji: '<:sword:1569064310301270188>'
-    },
-    spear: {
-        name: 'Spear',
-        testerRole: '1569770289859006464',
-        pingRole: '1569032210252828807',
-        emoji: '<:spear:1569825730697760848>'
     }
 };
 
@@ -252,7 +261,7 @@ function saveVerifications() { fs.writeFileSync(verificationsPath, JSON.stringif
 const xpCooldowns = new Set();
 
 const queueState = {
-    activeTesters: { axe: new Set(), crystal: new Set(), mace: new Set(), sword: new Set(), spear: new Set() },
+    activeTesters: { spear: new Set(), axe: new Set(), crystal: new Set(), mace: new Set(), sword: new Set() },
     queueList: [],
     panelMessageId: null
 };
@@ -260,7 +269,7 @@ const queueState = {
 let isQueueSessionActive = false;
 
 // ==========================================
-// EXPRESS WEB SERVER (PROFESSIONAL DESIGN)
+// EXPRESS WEB SERVER (WITH CUSTOM EMOJIS)
 // ==========================================
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -285,7 +294,7 @@ app.get('/', async (req, res) => {
                 if (!member) continue;
 
                 let totalPoints = 0;
-                let userTiers = { axe: 'None', crystal: 'None', mace: 'None', sword: 'None', spear: 'None' };
+                let userTiers = { spear: 'None', axe: 'None', crystal: 'None', mace: 'None', sword: 'None' };
 
                 for (const [mode, tiersObj] of Object.entries(TIER_ROLES)) {
                     for (const [tierName, roleId] of Object.entries(tiersObj)) {
@@ -355,7 +364,6 @@ app.get('/', async (req, res) => {
                 padding-bottom: 60px;
             }
 
-            /* --- NAVBAR & HERO --- */
             header {
                 position: relative;
                 padding: 40px 20px 60px 20px;
@@ -426,7 +434,6 @@ app.get('/', async (req, res) => {
                 box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
             }
 
-            /* --- STATS GRID --- */
             .stats-container {
                 max-width: 1100px;
                 margin: -30px auto 30px auto;
@@ -462,14 +469,12 @@ app.get('/', async (req, res) => {
                 margin-top: 2px;
             }
 
-            /* --- MAIN CONTENT CONTAINER --- */
             .container {
                 max-width: 1150px;
                 margin: 0 auto;
                 padding: 0 20px;
             }
 
-            /* --- CONTROLS & SEARCH BAR --- */
             .controls-bar {
                 display: flex;
                 flex-wrap: wrap;
@@ -489,12 +494,21 @@ app.get('/', async (req, res) => {
                 background: var(--card-bg);
                 border: 1px solid var(--card-border);
                 color: var(--text-muted);
-                padding: 10px 18px;
+                padding: 8px 16px;
                 font-family: 'Space Grotesk', sans-serif;
                 font-weight: 600;
                 border-radius: 10px;
                 cursor: pointer;
                 transition: all 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .tab-btn img {
+                width: 20px;
+                height: 20px;
+                object-fit: contain;
             }
 
             .tab-btn:hover, .tab-btn.active {
@@ -524,7 +538,6 @@ app.get('/', async (req, res) => {
                 border-color: var(--accent);
             }
 
-            /* --- LEADERBOARD TABLE --- */
             .table-card {
                 background: var(--card-bg);
                 backdrop-filter: blur(16px);
@@ -549,6 +562,23 @@ app.get('/', async (req, res) => {
                 color: var(--text-muted);
                 letter-spacing: 1px;
                 border-bottom: 1px solid var(--card-border);
+            }
+
+            .th-mode {
+                text-align: center;
+            }
+
+            .th-mode-inner {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .th-mode-inner img {
+                width: 24px;
+                height: 24px;
+                object-fit: contain;
             }
 
             td {
@@ -610,7 +640,10 @@ app.get('/', async (req, res) => {
                 min-width: 55px;
             }
 
-            /* Custom Tier colors */
+            .td-center {
+                text-align: center;
+            }
+
             .tier-HT1 { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
             .tier-LT1 { background: rgba(244, 63, 94, 0.15); color: #fb7185; }
             .tier-HT2 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
@@ -660,11 +693,11 @@ app.get('/', async (req, res) => {
             <div class="controls-bar">
                 <div class="filter-tabs">
                     <button class="tab-btn active" onclick="filterMode('all', this)">Overall</button>
-                    <button class="tab-btn" onclick="filterMode('axe', this)">Axe</button>
-                    <button class="tab-btn" onclick="filterMode('crystal', this)">Crystal</button>
-                    <button class="tab-btn" onclick="filterMode('mace', this)">Mace</button>
-                    <button class="tab-btn" onclick="filterMode('sword', this)">Sword</button>
-                    <button class="tab-btn" onclick="filterMode('spear', this)">Spear</button>
+                    <button class="tab-btn" onclick="filterMode('spear', this)"><img src="${EMOJI_URLS.spear}" alt="Spear"> Spear</button>
+                    <button class="tab-btn" onclick="filterMode('axe', this)"><img src="${EMOJI_URLS.axe}" alt="Axe"> Axe</button>
+                    <button class="tab-btn" onclick="filterMode('crystal', this)"><img src="${EMOJI_URLS.crystal}" alt="Crystal"> Crystal</button>
+                    <button class="tab-btn" onclick="filterMode('mace', this)"><img src="${EMOJI_URLS.mace}" alt="Mace"> Mace</button>
+                    <button class="tab-btn" onclick="filterMode('sword', this)"><img src="${EMOJI_URLS.sword}" alt="Sword"> Sword</button>
                 </div>
                 <div class="search-box">
                     <input type="text" id="searchInput" onkeyup="searchPlayers()" placeholder="Search IGN or Discord...">
@@ -678,11 +711,11 @@ app.get('/', async (req, res) => {
                             <th>Rank</th>
                             <th>Player</th>
                             <th>Server</th>
-                            <th class="col-mode col-axe">Axe</th>
-                            <th class="col-mode col-crystal">Crystal</th>
-                            <th class="col-mode col-mace">Mace</th>
-                            <th class="col-mode col-sword">Sword</th>
-                            <th class="col-mode col-spear">Spear</th>
+                            <th class="col-mode col-spear th-mode"><div class="th-mode-inner"><img src="${EMOJI_URLS.spear}" alt="Spear">Spear</div></th>
+                            <th class="col-mode col-axe th-mode"><div class="th-mode-inner"><img src="${EMOJI_URLS.axe}" alt="Axe">Axe</div></th>
+                            <th class="col-mode col-crystal th-mode"><div class="th-mode-inner"><img src="${EMOJI_URLS.crystal}" alt="Crystal">Crystal</div></th>
+                            <th class="col-mode col-mace th-mode"><div class="th-mode-inner"><img src="${EMOJI_URLS.mace}" alt="Mace">Mace</div></th>
+                            <th class="col-mode col-sword th-mode"><div class="th-mode-inner"><img src="${EMOJI_URLS.sword}" alt="Sword">Sword</div></th>
                             <th class="col-pts">Points</th>
                         </tr>
                     </thead>
@@ -691,11 +724,11 @@ app.get('/', async (req, res) => {
                             <tr class="player-row" 
                                 data-ign="${p.ign.toLowerCase()}" 
                                 data-username="${p.username.toLowerCase()}"
+                                data-spear="${p.tiers.spear}"
                                 data-axe="${p.tiers.axe}" 
                                 data-crystal="${p.tiers.crystal}" 
                                 data-mace="${p.tiers.mace}" 
                                 data-sword="${p.tiers.sword}" 
-                                data-spear="${p.tiers.spear}" 
                                 data-pts="${p.totalPoints}">
                                 <td class="rank ${index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : ''}">
                                     #${index + 1}
@@ -710,11 +743,11 @@ app.get('/', async (req, res) => {
                                     </div>
                                 </td>
                                 <td><span style="color: var(--text-muted); font-size: 0.9rem;">${p.server}</span></td>
-                                <td class="col-mode col-axe"><span class="badge tier-${p.tiers.axe}">${p.tiers.axe}</span></td>
-                                <td class="col-mode col-crystal"><span class="badge tier-${p.tiers.crystal}">${p.tiers.crystal}</span></td>
-                                <td class="col-mode col-mace"><span class="badge tier-${p.tiers.mace}">${p.tiers.mace}</span></td>
-                                <td class="col-mode col-sword"><span class="badge tier-${p.tiers.sword}">${p.tiers.sword}</span></td>
-                                <td class="col-mode col-spear"><span class="badge tier-${p.tiers.spear}">${p.tiers.spear}</span></td>
+                                <td class="col-mode col-spear td-center"><span class="badge tier-${p.tiers.spear}">${p.tiers.spear}</span></td>
+                                <td class="col-mode col-axe td-center"><span class="badge tier-${p.tiers.axe}">${p.tiers.axe}</span></td>
+                                <td class="col-mode col-crystal td-center"><span class="badge tier-${p.tiers.crystal}">${p.tiers.crystal}</span></td>
+                                <td class="col-mode col-mace td-center"><span class="badge tier-${p.tiers.mace}">${p.tiers.mace}</span></td>
+                                <td class="col-mode col-sword td-center"><span class="badge tier-${p.tiers.sword}">${p.tiers.sword}</span></td>
                                 <td class="col-pts"><span class="points-val">${p.totalPoints}</span></td>
                             </tr>
                         `).join('') : `
@@ -735,7 +768,7 @@ app.get('/', async (req, res) => {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
 
-                const allModes = ['axe', 'crystal', 'mace', 'sword', 'spear'];
+                const allModes = ['spear', 'axe', 'crystal', 'mace', 'sword'];
                 const rows = document.querySelectorAll('.player-row');
 
                 if (mode === 'all') {
@@ -854,11 +887,11 @@ client.once('clientReady', async () => {
                     .setDescription('Select gamemode')
                     .setRequired(true)
                     .addChoices(
+                        { name: 'Spear', value: 'spear' },
                         { name: 'Axe', value: 'axe' },
                         { name: 'Crystal', value: 'crystal' },
                         { name: 'Mace', value: 'mace' },
-                        { name: 'Sword', value: 'sword' },
-                        { name: 'Spear', value: 'spear' }
+                        { name: 'Sword', value: 'sword' }
                     )
             ),
 
@@ -917,11 +950,11 @@ client.once('clientReady', async () => {
                     .setDescription('Choose category')
                     .setRequired(true)
                     .addChoices(
+                        { name: 'Spear', value: 'spear' },
                         { name: 'Axe', value: 'axe' },
                         { name: 'Crystal', value: 'crystal' },
                         { name: 'Mace', value: 'mace' },
-                        { name: 'Sword', value: 'sword' },
-                        { name: 'Spear', value: 'spear' }
+                        { name: 'Sword', value: 'sword' }
                     )
             ),
 
@@ -933,11 +966,11 @@ client.once('clientReady', async () => {
                     .setDescription('Choose category')
                     .setRequired(true)
                     .addChoices(
+                        { name: 'Spear', value: 'spear' },
                         { name: 'Axe', value: 'axe' },
                         { name: 'Crystal', value: 'crystal' },
                         { name: 'Mace', value: 'mace' },
-                        { name: 'Sword', value: 'sword' },
-                        { name: 'Spear', value: 'spear' }
+                        { name: 'Sword', value: 'sword' }
                     )
             ),
 
@@ -949,11 +982,11 @@ client.once('clientReady', async () => {
                     .setDescription('Specific category to pull from (optional)')
                     .setRequired(false)
                     .addChoices(
+                        { name: 'Spear', value: 'spear' },
                         { name: 'Axe', value: 'axe' },
                         { name: 'Crystal', value: 'crystal' },
                         { name: 'Mace', value: 'mace' },
-                        { name: 'Sword', value: 'sword' },
-                        { name: 'Spear', value: 'spear' }
+                        { name: 'Sword', value: 'sword' }
                     )
             )
     ];
@@ -1766,7 +1799,7 @@ client.on('interactionCreate', async (interaction) => {
         if (interaction.customId === 'test_ticket_close_tier') {
             const topic = interaction.channel.topic || '';
             const categoryMatch = topic.match(/Category: (\w+)/);
-            const categoryKey = categoryMatch ? categoryMatch[1].toLowerCase() : 'axe';
+            const categoryKey = categoryMatch ? categoryMatch[1].toLowerCase() : 'spear';
 
             if (!TIER_ROLES[categoryKey]) {
                 return interaction.reply({ content: `Close with Tier is not configured for category: ${categoryKey}.`, flags: 64 });
@@ -1901,7 +1934,7 @@ client.on('interactionCreate', async (interaction) => {
 
             const ownerId = ownerIdMatch ? ownerIdMatch[1] : null;
             const testerId = testerIdMatch ? testerIdMatch[1] : interaction.user.id;
-            const categoryKey = categoryMatch ? categoryMatch[1].toLowerCase() : 'axe';
+            const categoryKey = categoryMatch ? categoryMatch[1].toLowerCase() : 'spear';
 
             if (!ownerId) {
                 return interaction.reply({ content: 'Could not resolve tested player from channel topic.', flags: 64 });
@@ -1945,8 +1978,8 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.deferUpdate();
 
             const targetMember = await interaction.guild.members.fetch(ownerId).catch(() => null);
-            const categoryData = QUEUE_CATEGORIES[categoryKey] || QUEUE_CATEGORIES.axe;
-            const categoryTierRoles = TIER_ROLES[categoryKey] || TIER_ROLES.axe;
+            const categoryData = QUEUE_CATEGORIES[categoryKey] || QUEUE_CATEGORIES.spear;
+            const categoryTierRoles = TIER_ROLES[categoryKey] || TIER_ROLES.spear;
 
             if (targetMember) {
                 const allGamemodeRoleIds = Object.values(categoryTierRoles);
@@ -2010,8 +2043,8 @@ client.on('interactionCreate', async (interaction) => {
 
             const targetMember = await interaction.guild.members.fetch(ownerId).catch(() => null);
             const testerMember = await interaction.guild.members.fetch(testerId).catch(() => null);
-            const categoryData = QUEUE_CATEGORIES[categoryKey] || QUEUE_CATEGORIES.axe;
-            const categoryTierRoles = TIER_ROLES[categoryKey] || TIER_ROLES.axe;
+            const categoryData = QUEUE_CATEGORIES[categoryKey] || QUEUE_CATEGORIES.spear;
+            const categoryTierRoles = TIER_ROLES[categoryKey] || TIER_ROLES.spear;
 
             loadVerifications();
             const userIgn = (verifications[ownerId] && verifications[ownerId].ign) ? verifications[ownerId].ign : (targetMember ? targetMember.user.username : 'Player');
