@@ -252,19 +252,19 @@ app.use(express.static(__dirname));
 app.get('/', async (req, res) => {
     let playersData = [];
 
-    // Herlaad direct uit het JSON-bestand voor de nieuwste gegevens
     loadVerifications();
 
     try {
         const guild = client.guilds.cache.first();
         if (guild) {
-            // Fetch alle rollen van de server om de nieuwste ledenlijsten per rol direct te synchroniseren
-            await guild.roles.fetch().catch(e => console.error('Error fetching roles:', e));
+            // Forceer een verse fetch van de guild én alle rollen
+            await guild.fetch().catch(() => null);
+            await guild.roles.fetch().catch(() => null);
 
+            // Haal per geverifieerde gebruiker de gegevens op
             for (const [userId, vData] of Object.entries(verifications)) {
                 let member = guild.members.cache.get(userId);
                 
-                // Als het lid nog niet in cache staat, haal hem geforceerd op
                 if (!member) {
                     member = await guild.members.fetch(userId).catch(() => null);
                 }
@@ -277,6 +277,8 @@ app.get('/', async (req, res) => {
                 for (const [mode, tiersObj] of Object.entries(TIER_ROLES)) {
                     for (const [tierName, roleId] of Object.entries(tiersObj)) {
                         const role = guild.roles.cache.get(roleId);
+                        
+                        // Check lid direct via member.roles OF via de members-collectie van de rol
                         const hasRole = member.roles.cache.has(roleId) || (role && role.members.has(userId));
 
                         if (hasRole) {
@@ -578,6 +580,19 @@ app.listen(PORT, () => {
 client.once('clientReady', async () => {
     console.log(`--> Logged in successfully as ${client.user.tag}`);
 
+    // Dwing Discord.js om direct alle members en rollen in cache op te slaan bij opstarten
+    try {
+        const guild = client.guilds.cache.first();
+        if (guild) {
+            console.log('--> Fetching and caching all guild roles and members...');
+            await guild.roles.fetch();
+            await guild.members.fetch();
+            console.log(`--> Successfully cached ${guild.members.cache.size} members.`);
+        }
+    } catch (err) {
+        console.error('Error initial fetching guild members:', err);
+    }
+
     const commands = [
         new SlashCommandBuilder()
             .setName('poll')
@@ -777,7 +792,7 @@ async function closeChannelWithTranscript(channel, guild, closedByUser, isTestTi
                     .setTitle('Ticket Closed')
                     .setDescription(`Your ticket **${channel.name}** has been closed.`)
                     .setColor(0x2b2d31);
-                await owner.send({ embeds: [dmEmbed], files: [attachment] }).catch(() => null);
+                await owner.send({ embeds: [dmEmbed] }).catch(() => null);
             }
         }
     }
