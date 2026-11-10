@@ -100,7 +100,7 @@ const TIER_POINTS = {
 const LOW_TIERS = ['LT5', 'HT5', 'LT4', 'HT4', 'LT3'];
 const HIGH_TIERS = ['LT3', 'HT3', 'LT2', 'HT2', 'LT1', 'HT1'];
 
-// All Tier Roles Mappings by Gamemode (Inclusief Spear)
+// All Tier Roles Mappings by Gamemode
 const TIER_ROLES = {
     axe: {
         'LT5': '1569091470802161905',
@@ -159,12 +159,12 @@ const TIER_ROLES = {
         'HT3': '1569768905461727295',
         'LT2': '1569769017969877044',
         'HT2': '1569769041801781390',
-        'LT1': '1569769146068246680',
+        'LT1': '1569769100748660796',
         'HT1': '1569769146068246680'
     }
 };
 
-// Queue Category Configuration (Inclusief Spear)
+// Queue Category Configuration
 const QUEUE_CATEGORIES = {
     axe: {
         name: 'Axe',
@@ -213,15 +213,22 @@ const pendingHighTierTests = new Map();
 const matchmakingCooldowns = new Map();
 const activeMatchmakingRequests = new Map();
 
-// JSON Databases
-const dbPath = path.join(__dirname, 'levels.json');
+// ==========================================
+// PERSISTENT DATA PATHS (RAILWAY VOLUME)
+// ==========================================
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = path.join(dataDir, 'levels.json');
 let levels = {};
 if (fs.existsSync(dbPath)) {
     try { levels = JSON.parse(fs.readFileSync(dbPath, 'utf-8')); } catch (e) {}
 }
 function saveLevels() { fs.writeFileSync(dbPath, JSON.stringify(levels, null, 2)); }
 
-const verificationsPath = path.join(__dirname, 'verifications.json');
+const verificationsPath = path.join(dataDir, 'verifications.json');
 let verifications = {};
 function loadVerifications() {
     if (fs.existsSync(verificationsPath)) {
@@ -257,18 +264,10 @@ app.get('/', async (req, res) => {
     try {
         const guild = client.guilds.cache.first();
         if (guild) {
-            // Forceer een verse fetch van de guild én alle rollen
-            await guild.fetch().catch(() => null);
             await guild.roles.fetch().catch(() => null);
 
-            // Haal per geverifieerde gebruiker de gegevens op
             for (const [userId, vData] of Object.entries(verifications)) {
-                let member = guild.members.cache.get(userId);
-                
-                if (!member) {
-                    member = await guild.members.fetch(userId).catch(() => null);
-                }
-                
+                let member = await guild.members.fetch(userId).catch(() => null);
                 if (!member) continue;
 
                 let totalPoints = 0;
@@ -276,12 +275,7 @@ app.get('/', async (req, res) => {
 
                 for (const [mode, tiersObj] of Object.entries(TIER_ROLES)) {
                     for (const [tierName, roleId] of Object.entries(tiersObj)) {
-                        const role = guild.roles.cache.get(roleId);
-                        
-                        // Check lid direct via member.roles OF via de members-collectie van de rol
-                        const hasRole = member.roles.cache.has(roleId) || (role && role.members.has(userId));
-
-                        if (hasRole) {
+                        if (member.roles.cache.has(roleId)) {
                             userTiers[mode] = tierName;
                             totalPoints += (TIER_POINTS[tierName] || 0);
                             break;
@@ -580,17 +574,14 @@ app.listen(PORT, () => {
 client.once('clientReady', async () => {
     console.log(`--> Logged in successfully as ${client.user.tag}`);
 
-    // Dwing Discord.js om direct alle members en rollen in cache op te slaan bij opstarten
     try {
         const guild = client.guilds.cache.first();
         if (guild) {
-            console.log('--> Fetching and caching all guild roles and members...');
-            await guild.roles.fetch();
-            await guild.members.fetch();
-            console.log(`--> Successfully cached ${guild.members.cache.size} members.`);
+            console.log('--> Caching guild members...');
+            await guild.members.fetch().catch(() => null);
         }
     } catch (err) {
-        console.error('Error initial fetching guild members:', err);
+        console.error('Error fetching guild members on startup:', err);
     }
 
     const commands = [
