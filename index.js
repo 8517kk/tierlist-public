@@ -36,6 +36,10 @@ if (!TOKEN || !CLIENT_ID) {
     process.exit(1);
 }
 
+// Image URLs (Discord CDN)
+const LOGO_URL = "https://cdn.discordapp.com/attachments/1567609881488396359/1569424331186905160/egqh4gAAAAZJREFUAwDgGQdxG6llxAAAAABJRU5ErkJggg.png?ex=6af4b94f&is=6af367cf&hm=4ef063651d547829fa3c434bda76d642bed558630fbf3c9e3a6c789a7ecae945&";
+const BANNER_URL = "https://cdn.discordapp.com/attachments/1569030796600418354/1569833405884141630/banner.png?ex=6af4e4ca&is=6af3934a&hm=777ade49c6244b4c27157cb2ef75a61aaa9c72df2671754b40e75a4c708de8b2&";
+
 // Register Minecrafter Font
 const fontPath = path.join(__dirname, 'Minecrafter.Reg.ttf');
 if (fs.existsSync(fontPath)) {
@@ -216,9 +220,16 @@ const activeMatchmakingRequests = new Map();
 // ==========================================
 // PERSISTENT DATA PATHS (RAILWAY VOLUME)
 // ==========================================
-const dataDir = path.join(__dirname, 'data');
+const dataDir = process.env.RAILWAY_VOLUME_MOUNT_PATH 
+    ? process.env.RAILWAY_VOLUME_MOUNT_PATH 
+    : path.join(__dirname, 'data');
+
 if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+    try {
+        fs.mkdirSync(dataDir, { recursive: true });
+    } catch (e) {
+        console.error('Could not create data directory:', e);
+    }
 }
 
 const dbPath = path.join(dataDir, 'levels.json');
@@ -252,9 +263,13 @@ let isQueueSessionActive = false;
 // EXPRESS WEB SERVER (FOR RAILWAY)
 // ==========================================
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
-app.use(express.static(__dirname));
+// Voorkom dat de browser de oude site cached
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    next();
+});
 
 app.get('/', async (req, res) => {
     let playersData = [];
@@ -312,12 +327,13 @@ app.get('/', async (req, res) => {
         <link href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
         <style>
             :root {
-                --bg: #0f1115;
-                --card-bg: #161920;
-                --accent: #57f287;
+                --bg: #0b0f0d;
+                --card-bg: #131a16;
+                --accent: #f59e0b;
+                --accent-hover: #d97706;
                 --text: #ffffff;
-                --subtext: #9aa0a6;
-                --border: #242933;
+                --subtext: #9ca3af;
+                --border: #233128;
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
@@ -327,31 +343,33 @@ app.get('/', async (req, res) => {
                 padding-bottom: 50px;
             }
             header {
-                background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(15,17,21,1) 100%), url('/goon tiers pfp.jpg') center/cover no-repeat;
+                background: linear-gradient(180deg, rgba(11, 15, 13, 0.75) 0%, rgba(11, 15, 13, 1) 100%), url('${BANNER_URL}') center/cover no-repeat;
                 padding: 60px 20px;
                 text-align: center;
                 border-bottom: 2px solid var(--border);
+                box-shadow: 0 4px 25px rgba(245, 158, 11, 0.15);
             }
             .header-logo {
-                max-width: 140px;
+                max-width: 150px;
                 margin-bottom: 15px;
-                filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.6));
+                filter: drop-shadow(0px 6px 15px rgba(0,0,0,0.8));
             }
-            h1 { font-size: 3rem; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+            h1 { font-size: 3.2rem; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #ffffff; text-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
             p.sub { color: var(--subtext); margin-top: 5px; font-size: 1.1rem; }
             .invite-btn {
                 display: inline-block;
                 margin-top: 20px;
-                background-color: #5865F2;
-                color: white;
+                background-color: var(--accent);
+                color: #000;
                 padding: 12px 28px;
                 text-decoration: none;
-                font-weight: bold;
+                font-weight: 900;
                 border-radius: 8px;
                 transition: 0.2s ease;
-                box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4);
+                box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+                text-transform: uppercase;
             }
-            .invite-btn:hover { background-color: #4752C4; transform: translateY(-2px); }
+            .invite-btn:hover { background-color: var(--accent-hover); transform: translateY(-2px); color: #fff; }
             
             .container {
                 max-width: 1150px;
@@ -388,7 +406,7 @@ app.get('/', async (req, res) => {
                 border-radius: 12px;
                 border: 1px solid var(--border);
                 overflow-x: auto;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.6);
             }
             table {
                 width: 100%;
@@ -400,13 +418,13 @@ app.get('/', async (req, res) => {
                 border-bottom: 1px solid var(--border);
             }
             th {
-                background-color: #1a1d26;
+                background-color: #17211c;
                 color: var(--subtext);
                 text-transform: uppercase;
                 font-size: 0.85rem;
                 letter-spacing: 1px;
             }
-            tr:hover { background-color: #1c202a; }
+            tr:hover { background-color: #1c2822; }
 
             .player-info {
                 display: flex;
@@ -425,7 +443,7 @@ app.get('/', async (req, res) => {
                 border-radius: 6px;
                 font-weight: bold;
                 font-size: 0.85rem;
-                background: #232730;
+                background: #1f2a24;
                 color: #fff;
             }
             .tier-HT1 { background: #ff4757; color: white; }
@@ -445,7 +463,7 @@ app.get('/', async (req, res) => {
     </head>
     <body>
         <header>
-            <img src="/image_fe8e77.png" alt="Goon Tiers Logo" class="header-logo">
+            <img src="${LOGO_URL}" alt="Goon Tiers Logo" class="header-logo">
             <h1>Goon Tiers</h1>
             <p class="sub">Official Competitive Minecraft PvP Leaderboard & Tierlist</p>
             <a href="${discordInviteLink}" target="_blank" class="invite-btn">Join Discord</a>
@@ -563,7 +581,10 @@ app.get('/', async (req, res) => {
     res.send(html);
 });
 
-app.listen(PORT, () => {
+app.use(express.static(__dirname));
+
+// Bind expliciet op 0.0.0.0 voor Railway health checks
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`--> Web Server running on port ${PORT}`);
 });
 
