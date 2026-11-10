@@ -252,15 +252,23 @@ app.use(express.static(__dirname));
 app.get('/', async (req, res) => {
     let playersData = [];
 
+    // Herlaad direct uit het JSON-bestand voor de nieuwste gegevens
     loadVerifications();
 
     try {
         const guild = client.guilds.cache.first();
         if (guild) {
-            await guild.members.fetch().catch(err => console.error('Error fetching guild members:', err));
-            
+            // Fetch alle rollen van de server om de nieuwste ledenlijsten per rol direct te synchroniseren
+            await guild.roles.fetch().catch(e => console.error('Error fetching roles:', e));
+
             for (const [userId, vData] of Object.entries(verifications)) {
-                const member = guild.members.cache.get(userId);
+                let member = guild.members.cache.get(userId);
+                
+                // Als het lid nog niet in cache staat, haal hem geforceerd op
+                if (!member) {
+                    member = await guild.members.fetch(userId).catch(() => null);
+                }
+                
                 if (!member) continue;
 
                 let totalPoints = 0;
@@ -268,7 +276,10 @@ app.get('/', async (req, res) => {
 
                 for (const [mode, tiersObj] of Object.entries(TIER_ROLES)) {
                     for (const [tierName, roleId] of Object.entries(tiersObj)) {
-                        if (member.roles.cache.has(roleId)) {
+                        const role = guild.roles.cache.get(roleId);
+                        const hasRole = member.roles.cache.has(roleId) || (role && role.members.has(userId));
+
+                        if (hasRole) {
                             userTiers[mode] = tierName;
                             totalPoints += (TIER_POINTS[tierName] || 0);
                             break;
@@ -352,7 +363,6 @@ app.get('/', async (req, res) => {
                 padding: 0 20px;
             }
 
-            /* GAMEMODE FILTER BUTTONS */
             .filter-nav {
                 display: flex;
                 gap: 10px;
@@ -446,7 +456,6 @@ app.get('/', async (req, res) => {
         </header>
 
         <div class="container">
-            <!-- Gamemode Filter Bar -->
             <div class="filter-nav">
                 <button class="filter-btn active" onclick="filterMode('all', this)">Overall Leaderboard</button>
                 <button class="filter-btn" onclick="filterMode('axe', this)">Axe</button>
