@@ -260,12 +260,11 @@ const queueState = {
 let isQueueSessionActive = false;
 
 // ==========================================
-// EXPRESS WEB SERVER (FOR RAILWAY)
+// EXPRESS WEB SERVER (PROFESSIONAL DESIGN)
 // ==========================================
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Voorkom dat de browser de oude site cached
 app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     next();
@@ -315,6 +314,9 @@ app.get('/', async (req, res) => {
 
     playersData.sort((a, b) => b.totalPoints - a.totalPoints);
 
+    const totalVerified = playersData.length;
+    const accumulatedPoints = playersData.reduce((acc, p) => acc + p.totalPoints, 0);
+
     const discordInviteLink = "https://discord.gg/fsjMv8eaV";
 
     const html = `
@@ -323,167 +325,357 @@ app.get('/', async (req, res) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GOON TIERS - Official Tier List & Rankings</title>
-        <link href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
+        <title>GOON TIERS • Official Leaderboard</title>
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
         <style>
             :root {
-                --bg: #0b0f0d;
-                --card-bg: #131a16;
+                --bg: #090b0e;
+                --card-bg: rgba(18, 22, 28, 0.75);
+                --card-border: rgba(255, 255, 255, 0.08);
                 --accent: #f59e0b;
-                --accent-hover: #d97706;
-                --text: #ffffff;
-                --subtext: #9ca3af;
-                --border: #233128;
+                --accent-glow: rgba(245, 158, 11, 0.25);
+                --text-main: #f3f4f6;
+                --text-muted: #9ca3af;
+                --gold: #fbbf24;
+                --silver: #94a3b8;
+                --bronze: #d97706;
             }
+
             * { box-sizing: border-box; margin: 0; padding: 0; }
+
             body {
                 background-color: var(--bg);
-                color: var(--text);
-                font-family: 'Kanit', sans-serif;
-                padding-bottom: 50px;
+                color: var(--text-main);
+                font-family: 'Plus Jakarta Sans', sans-serif;
+                background-image: 
+                    radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.12) 0%, transparent 50%),
+                    radial-gradient(circle at 0% 100%, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
+                background-attachment: fixed;
+                min-height: 100vh;
+                padding-bottom: 60px;
             }
+
+            /* --- NAVBAR & HERO --- */
             header {
-                background: linear-gradient(180deg, rgba(11, 15, 13, 0.75) 0%, rgba(11, 15, 13, 1) 100%), url('${BANNER_URL}') center/cover no-repeat;
-                padding: 60px 20px;
+                position: relative;
+                padding: 40px 20px 60px 20px;
                 text-align: center;
-                border-bottom: 2px solid var(--border);
-                box-shadow: 0 4px 25px rgba(245, 158, 11, 0.15);
+                border-bottom: 1px solid var(--card-border);
+                background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(9,11,14,0.95) 100%), url('${BANNER_URL}') center/cover no-repeat;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
             }
-            .header-logo {
-                max-width: 150px;
+
+            .brand-logo {
+                width: 130px;
+                height: 130px;
                 margin-bottom: 15px;
-                filter: drop-shadow(0px 6px 15px rgba(0,0,0,0.8));
+                filter: drop-shadow(0 0 20px var(--accent-glow));
+                animation: float 4s ease-in-out infinite;
             }
-            h1 { font-size: 3.2rem; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #ffffff; text-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
-            p.sub { color: var(--subtext); margin-top: 5px; font-size: 1.1rem; }
-            .invite-btn {
-                display: inline-block;
-                margin-top: 20px;
-                background-color: var(--accent);
-                color: #000;
-                padding: 12px 28px;
-                text-decoration: none;
-                font-weight: 900;
-                border-radius: 8px;
-                transition: 0.2s ease;
-                box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-6px); }
+            }
+
+            h1 {
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 3.5rem;
+                font-weight: 700;
+                letter-spacing: -1px;
                 text-transform: uppercase;
+                background: linear-gradient(135deg, #ffffff 0%, #d1d5db 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
             }
-            .invite-btn:hover { background-color: var(--accent-hover); transform: translateY(-2px); color: #fff; }
-            
+
+            p.sub {
+                color: var(--text-muted);
+                font-size: 1.1rem;
+                margin-top: 6px;
+            }
+
+            .hero-btns {
+                margin-top: 25px;
+                display: flex;
+                gap: 15px;
+                justify-content: center;
+            }
+
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px 28px;
+                border-radius: 10px;
+                font-weight: 700;
+                text-decoration: none;
+                transition: all 0.25s ease;
+                font-size: 0.95rem;
+                cursor: pointer;
+            }
+
+            .btn-primary {
+                background: var(--accent);
+                color: #000;
+                box-shadow: 0 0 20px var(--accent-glow);
+            }
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                background: #e08e0b;
+                box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
+            }
+
+            /* --- STATS GRID --- */
+            .stats-container {
+                max-width: 1100px;
+                margin: -30px auto 30px auto;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 15px;
+                padding: 0 20px;
+                position: relative;
+                z-index: 10;
+            }
+
+            .stat-card {
+                background: var(--card-bg);
+                backdrop-filter: blur(12px);
+                border: 1px solid var(--card-border);
+                border-radius: 14px;
+                padding: 20px;
+                text-align: center;
+            }
+
+            .stat-value {
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--accent);
+            }
+
+            .stat-label {
+                font-size: 0.85rem;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-top: 2px;
+            }
+
+            /* --- MAIN CONTENT CONTAINER --- */
             .container {
                 max-width: 1150px;
-                margin: 40px auto;
+                margin: 0 auto;
                 padding: 0 20px;
             }
 
-            .filter-nav {
+            /* --- CONTROLS & SEARCH BAR --- */
+            .controls-bar {
                 display: flex;
-                gap: 10px;
-                margin-bottom: 20px;
                 flex-wrap: wrap;
-                justify-content: center;
+                justify-content: space-between;
+                align-items: center;
+                gap: 15px;
+                margin-bottom: 25px;
             }
-            .filter-btn {
-                background-color: var(--card-bg);
-                border: 1px solid var(--border);
-                color: var(--text);
-                padding: 10px 20px;
-                font-family: 'Kanit', sans-serif;
-                font-weight: 700;
-                border-radius: 8px;
+
+            .filter-tabs {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            .tab-btn {
+                background: var(--card-bg);
+                border: 1px solid var(--card-border);
+                color: var(--text-muted);
+                padding: 10px 18px;
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 600;
+                border-radius: 10px;
                 cursor: pointer;
-                transition: 0.2s ease;
+                transition: all 0.2s ease;
             }
-            .filter-btn:hover, .filter-btn.active {
-                background-color: var(--accent);
+
+            .tab-btn:hover, .tab-btn.active {
+                background: var(--accent);
                 color: #000;
                 border-color: var(--accent);
             }
 
-            .table-wrapper {
-                background-color: var(--card-bg);
-                border-radius: 12px;
-                border: 1px solid var(--border);
-                overflow-x: auto;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            .search-box {
+                position: relative;
+                min-width: 260px;
             }
+
+            .search-box input {
+                width: 100%;
+                background: var(--card-bg);
+                border: 1px solid var(--card-border);
+                padding: 11px 16px;
+                border-radius: 10px;
+                color: #fff;
+                font-family: inherit;
+                outline: none;
+                transition: border 0.2s;
+            }
+
+            .search-box input:focus {
+                border-color: var(--accent);
+            }
+
+            /* --- LEADERBOARD TABLE --- */
+            .table-card {
+                background: var(--card-bg);
+                backdrop-filter: blur(16px);
+                border: 1px solid var(--card-border);
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            }
+
             table {
                 width: 100%;
                 border-collapse: collapse;
                 text-align: left;
             }
-            th, td {
-                padding: 16px 20px;
-                border-bottom: 1px solid var(--border);
-            }
-            th {
-                background-color: #17211c;
-                color: var(--subtext);
-                text-transform: uppercase;
-                font-size: 0.85rem;
-                letter-spacing: 1px;
-            }
-            tr:hover { background-color: #1c2822; }
 
-            .player-info {
+            th {
+                background: rgba(255, 255, 255, 0.03);
+                padding: 18px 20px;
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 0.85rem;
+                text-transform: uppercase;
+                color: var(--text-muted);
+                letter-spacing: 1px;
+                border-bottom: 1px solid var(--card-border);
+            }
+
+            td {
+                padding: 16px 20px;
+                border-bottom: 1px solid var(--card-border);
+                transition: background 0.2s ease;
+            }
+
+            tr:hover td {
+                background: rgba(255, 255, 255, 0.02);
+            }
+
+            .rank {
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 700;
+                font-size: 1.1rem;
+                width: 50px;
+            }
+
+            .rank-1 { color: var(--gold); }
+            .rank-2 { color: var(--silver); }
+            .rank-3 { color: var(--bronze); }
+
+            .player-flex {
                 display: flex;
                 align-items: center;
-                gap: 12px;
-            }
-            .player-skin {
-                width: 36px;
-                height: 36px;
-                border-radius: 6px;
+                gap: 14px;
             }
 
-            .tier-badge {
-                display: inline-block;
-                padding: 4px 10px;
-                border-radius: 6px;
-                font-weight: bold;
-                font-size: 0.85rem;
-                background: #1f2a24;
+            .player-avatar {
+                width: 42px;
+                height: 42px;
+                border-radius: 8px;
+                background: rgba(0,0,0,0.5);
+                border: 1px solid var(--card-border);
+            }
+
+            .player-names .ign {
+                font-weight: 700;
+                font-size: 1rem;
                 color: #fff;
             }
-            .tier-HT1 { background: #ff4757; color: white; }
-            .tier-LT1 { background: #ff6b81; color: white; }
-            .tier-HT2 { background: #ffa502; color: white; }
-            .tier-LT2 { background: #eccc68; color: black; }
-            .tier-HT3 { background: #2ed573; color: black; }
-            .tier-LT3 { background: #7bed9f; color: black; }
-            .tier-HT4 { background: #1e90ff; color: white; }
-            .tier-LT4 { background: #70a1ff; color: black; }
-            .tier-HT5 { background: #a4b0be; color: black; }
-            .tier-LT5 { background: #747d8c; color: white; }
-            .tier-None { opacity: 0.3; }
 
-            .pts { font-weight: 900; color: var(--accent); font-size: 1.1rem; }
+            .player-names .discord {
+                font-size: 0.8rem;
+                color: var(--text-muted);
+            }
+
+            .badge {
+                display: inline-block;
+                padding: 5px 12px;
+                border-radius: 6px;
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 700;
+                font-size: 0.85rem;
+                background: rgba(255,255,255,0.05);
+                color: #9ca3af;
+                text-align: center;
+                min-width: 55px;
+            }
+
+            /* Custom Tier colors */
+            .tier-HT1 { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+            .tier-LT1 { background: rgba(244, 63, 94, 0.15); color: #fb7185; }
+            .tier-HT2 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+            .tier-LT2 { background: rgba(234, 179, 8, 0.15); color: #fde047; }
+            .tier-HT3 { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+            .tier-LT3 { background: rgba(52, 211, 153, 0.15); color: #6ee7b7; }
+            .tier-HT4 { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+            .tier-LT4 { background: rgba(96, 165, 250, 0.15); color: #93c5fd; }
+            .tier-HT5 { background: rgba(156, 163, 175, 0.2); color: #e5e7eb; }
+            .tier-LT5 { background: rgba(107, 114, 128, 0.15); color: #9ca3af; }
+            .tier-None { opacity: 0.25; }
+
+            .points-val {
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 700;
+                font-size: 1.15rem;
+                color: var(--accent);
+            }
         </style>
     </head>
     <body>
         <header>
-            <img src="${LOGO_URL}" alt="Goon Tiers Logo" class="header-logo">
+            <img src="${LOGO_URL}" alt="Goon Tiers Logo" class="brand-logo">
             <h1>Goon Tiers</h1>
-            <p class="sub">Official Competitive Minecraft PvP Leaderboard & Tierlist</p>
-            <a href="${discordInviteLink}" target="_blank" class="invite-btn">Join Discord</a>
+            <p class="sub">Competitive Minecraft PvP Leaderboard & Ranking Index</p>
+            <div class="hero-btns">
+                <a href="${discordInviteLink}" target="_blank" class="btn btn-primary">Join Discord Server</a>
+            </div>
         </header>
 
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-value">${totalVerified}</div>
+                <div class="stat-label">Verified Players</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${accumulatedPoints}</div>
+                <div class="stat-label">Total Points Assigned</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">5</div>
+                <div class="stat-label">Gamemode Modes</div>
+            </div>
+        </div>
+
         <div class="container">
-            <div class="filter-nav">
-                <button class="filter-btn active" onclick="filterMode('all', this)">Overall Leaderboard</button>
-                <button class="filter-btn" onclick="filterMode('axe', this)">Axe</button>
-                <button class="filter-btn" onclick="filterMode('crystal', this)">Crystal</button>
-                <button class="filter-btn" onclick="filterMode('mace', this)">Mace</button>
-                <button class="filter-btn" onclick="filterMode('sword', this)">Sword</button>
-                <button class="filter-btn" onclick="filterMode('spear', this)">Spear</button>
+            <div class="controls-bar">
+                <div class="filter-tabs">
+                    <button class="tab-btn active" onclick="filterMode('all', this)">Overall</button>
+                    <button class="tab-btn" onclick="filterMode('axe', this)">Axe</button>
+                    <button class="tab-btn" onclick="filterMode('crystal', this)">Crystal</button>
+                    <button class="tab-btn" onclick="filterMode('mace', this)">Mace</button>
+                    <button class="tab-btn" onclick="filterMode('sword', this)">Sword</button>
+                    <button class="tab-btn" onclick="filterMode('spear', this)">Spear</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="searchInput" onkeyup="searchPlayers()" placeholder="Search IGN or Discord...">
+                </div>
             </div>
 
-            <div class="table-wrapper">
+            <div class="table-card">
                 <table id="leaderboardTable">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            <th>Rank</th>
                             <th>Player</th>
                             <th>Server</th>
                             <th class="col-mode col-axe">Axe</th>
@@ -491,39 +683,43 @@ app.get('/', async (req, res) => {
                             <th class="col-mode col-mace">Mace</th>
                             <th class="col-mode col-sword">Sword</th>
                             <th class="col-mode col-spear">Spear</th>
-                            <th class="col-pts">Total Pts</th>
+                            <th class="col-pts">Points</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${playersData.length > 0 ? playersData.map((p, index) => `
                             <tr class="player-row" 
+                                data-ign="${p.ign.toLowerCase()}" 
+                                data-username="${p.username.toLowerCase()}"
                                 data-axe="${p.tiers.axe}" 
                                 data-crystal="${p.tiers.crystal}" 
                                 data-mace="${p.tiers.mace}" 
                                 data-sword="${p.tiers.sword}" 
                                 data-spear="${p.tiers.spear}" 
                                 data-pts="${p.totalPoints}">
-                                <td class="rank-num"><strong>#${index + 1}</strong></td>
+                                <td class="rank ${index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : ''}">
+                                    #${index + 1}
+                                </td>
                                 <td>
-                                    <div class="player-info">
-                                        <img src="https://visage.surgeplay.com/bust/64/${encodeURIComponent(p.ign)}" class="player-skin" onerror="this.src='${p.avatar}'">
-                                        <div>
-                                            <div style="font-weight: bold;">${p.ign}</div>
-                                            <div style="font-size: 0.8rem; color: var(--subtext);">@${p.username}</div>
+                                    <div class="player-flex">
+                                        <img src="https://mc-heads.net/avatar/${encodeURIComponent(p.ign)}/42" class="player-avatar" onerror="this.src='${p.avatar}'">
+                                        <div class="player-names">
+                                            <div class="ign">${p.ign}</div>
+                                            <div class="discord">@${p.username}</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td><span style="color: var(--subtext);">${p.server}</span></td>
-                                <td class="col-mode col-axe"><span class="tier-badge tier-${p.tiers.axe}">${p.tiers.axe}</span></td>
-                                <td class="col-mode col-crystal"><span class="tier-badge tier-${p.tiers.crystal}">${p.tiers.crystal}</span></td>
-                                <td class="col-mode col-mace"><span class="tier-badge tier-${p.tiers.mace}">${p.tiers.mace}</span></td>
-                                <td class="col-mode col-sword"><span class="tier-badge tier-${p.tiers.sword}">${p.tiers.sword}</span></td>
-                                <td class="col-mode col-spear"><span class="tier-badge tier-${p.tiers.spear}">${p.tiers.spear}</span></td>
-                                <td class="col-pts"><span class="pts">${p.totalPoints} pts</span></td>
+                                <td><span style="color: var(--text-muted); font-size: 0.9rem;">${p.server}</span></td>
+                                <td class="col-mode col-axe"><span class="badge tier-${p.tiers.axe}">${p.tiers.axe}</span></td>
+                                <td class="col-mode col-crystal"><span class="badge tier-${p.tiers.crystal}">${p.tiers.crystal}</span></td>
+                                <td class="col-mode col-mace"><span class="badge tier-${p.tiers.mace}">${p.tiers.mace}</span></td>
+                                <td class="col-mode col-sword"><span class="badge tier-${p.tiers.sword}">${p.tiers.sword}</span></td>
+                                <td class="col-mode col-spear"><span class="badge tier-${p.tiers.spear}">${p.tiers.spear}</span></td>
+                                <td class="col-pts"><span class="points-val">${p.totalPoints}</span></td>
                             </tr>
                         `).join('') : `
                             <tr>
-                                <td colspan="9" style="text-align: center; padding: 40px; color: var(--subtext);">No verified players found in database yet.</td>
+                                <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">No verified players found in database.</td>
                             </tr>
                         `}
                     </tbody>
@@ -532,8 +728,11 @@ app.get('/', async (req, res) => {
         </div>
 
         <script>
+            let currentMode = 'all';
+
             function filterMode(mode, btn) {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                currentMode = mode;
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
 
                 const allModes = ['axe', 'crystal', 'mace', 'sword', 'spear'];
@@ -542,10 +741,6 @@ app.get('/', async (req, res) => {
                 if (mode === 'all') {
                     document.querySelectorAll('.col-mode').forEach(col => col.style.display = '');
                     document.querySelectorAll('.col-pts').forEach(col => col.style.display = '');
-
-                    rows.forEach(row => {
-                        row.style.display = '';
-                    });
                 } else {
                     allModes.forEach(m => {
                         const show = (m === mode);
@@ -554,22 +749,39 @@ app.get('/', async (req, res) => {
                         });
                     });
                     document.querySelectorAll('.col-pts').forEach(col => col.style.display = 'none');
-
-                    rows.forEach(row => {
-                        const tier = row.getAttribute('data-' + mode);
-                        if (tier && tier !== 'None') {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
-                    });
                 }
 
-                let visibleCount = 1;
+                applyFilters();
+            }
+
+            function searchPlayers() {
+                applyFilters();
+            }
+
+            function applyFilters() {
+                const query = document.getElementById('searchInput').value.toLowerCase().trim();
+                const rows = document.querySelectorAll('.player-row');
+                let count = 1;
+
                 rows.forEach(row => {
-                    if (row.style.display !== 'none') {
-                        row.querySelector('.rank-num').innerHTML = '<strong>#' + visibleCount + '</strong>';
-                        visibleCount++;
+                    const ign = row.getAttribute('data-ign');
+                    const username = row.getAttribute('data-username');
+                    const matchesSearch = ign.includes(query) || username.includes(query);
+
+                    let matchesMode = true;
+                    if (currentMode !== 'all') {
+                        const tier = row.getAttribute('data-' + currentMode);
+                        matchesMode = (tier && tier !== 'None');
+                    }
+
+                    if (matchesSearch && matchesMode) {
+                        row.style.display = '';
+                        const rankTd = row.querySelector('.rank');
+                        rankTd.innerText = '#' + count;
+                        rankTd.className = 'rank ' + (count === 1 ? 'rank-1' : count === 2 ? 'rank-2' : count === 3 ? 'rank-3' : '');
+                        count++;
+                    } else {
+                        row.style.display = 'none';
                     }
                 });
             }
@@ -583,7 +795,6 @@ app.get('/', async (req, res) => {
 
 app.use(express.static(__dirname));
 
-// Bind expliciet op 0.0.0.0 voor Railway health checks
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`--> Web Server running on port ${PORT}`);
 });
