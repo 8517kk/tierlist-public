@@ -96,11 +96,11 @@ const TIER_POINTS = {
     'HT1': 10
 };
 
-// Tier Lists (LT3 is included in High Tiers)
-const LOW_TIERS = ['LT5', 'HT5', 'LT4', 'HT4'];
+// Tier Lists
+const LOW_TIERS = ['LT5', 'HT5', 'LT4', 'HT4', 'LT3'];
 const HIGH_TIERS = ['LT3', 'HT3', 'LT2', 'HT2', 'LT1', 'HT1'];
 
-// All Tier Roles Mappings by Gamemode
+// All Tier Roles Mappings by Gamemode (Inclusief Spear)
 const TIER_ROLES = {
     axe: {
         'LT5': '1569091470802161905',
@@ -149,10 +149,22 @@ const TIER_ROLES = {
         'HT2': '1569091498966917274',
         'LT1': '1569091505032011838',
         'HT1': '1569091497008042194'
+    },
+    spear: {
+        'LT5': '1569768568101543976',
+        'HT5': '1569768594282258454',
+        'LT4': '1569768619695411331',
+        'HT4': '1569768679690735759',
+        'LT3': '1569768871135547562',
+        'HT3': '1569768905461727295',
+        'LT2': '1569769017969877044',
+        'HT2': '1569769041801781390',
+        'LT1': '1569769146068246680',
+        'HT1': '1569769146068246680'
     }
 };
 
-// Queue Category Configuration
+// Queue Category Configuration (Inclusief Spear)
 const QUEUE_CATEGORIES = {
     axe: {
         name: 'Axe',
@@ -177,6 +189,12 @@ const QUEUE_CATEGORIES = {
         testerRole: '1569062872804233368',
         pingRole: '1569062857545351220',
         emoji: '<:sword:1569064310301270188>'
+    },
+    spear: {
+        name: 'Spear',
+        testerRole: '1569770289859006464',
+        pingRole: '1569032210252828807',
+        emoji: '<:spear:1569825730697760848>'
     }
 };
 
@@ -216,7 +234,7 @@ function saveVerifications() { fs.writeFileSync(verificationsPath, JSON.stringif
 const xpCooldowns = new Set();
 
 const queueState = {
-    activeTesters: { axe: new Set(), crystal: new Set(), mace: new Set(), sword: new Set() },
+    activeTesters: { axe: new Set(), crystal: new Set(), mace: new Set(), sword: new Set(), spear: new Set() },
     queueList: [],
     panelMessageId: null
 };
@@ -234,7 +252,6 @@ app.use(express.static(__dirname));
 app.get('/', async (req, res) => {
     let playersData = [];
 
-    // Herlaad direct uit het JSON-bestand voor de nieuwste gegevens
     loadVerifications();
 
     try {
@@ -247,7 +264,7 @@ app.get('/', async (req, res) => {
                 if (!member) continue;
 
                 let totalPoints = 0;
-                let userTiers = { axe: 'None', crystal: 'None', mace: 'None', sword: 'None' };
+                let userTiers = { axe: 'None', crystal: 'None', mace: 'None', sword: 'None', spear: 'None' };
 
                 for (const [mode, tiersObj] of Object.entries(TIER_ROLES)) {
                     for (const [tierName, roleId] of Object.entries(tiersObj)) {
@@ -330,9 +347,34 @@ app.get('/', async (req, res) => {
             .invite-btn:hover { background-color: #4752C4; transform: translateY(-2px); }
             
             .container {
-                max-width: 1100px;
+                max-width: 1150px;
                 margin: 40px auto;
                 padding: 0 20px;
+            }
+
+            /* GAMEMODE FILTER BUTTONS */
+            .filter-nav {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .filter-btn {
+                background-color: var(--card-bg);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 10px 20px;
+                font-family: 'Kanit', sans-serif;
+                font-weight: 700;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: 0.2s ease;
+            }
+            .filter-btn:hover, .filter-btn.active {
+                background-color: var(--accent);
+                color: #000;
+                border-color: var(--accent);
             }
 
             .table-wrapper {
@@ -404,24 +446,41 @@ app.get('/', async (req, res) => {
         </header>
 
         <div class="container">
+            <!-- Gamemode Filter Bar -->
+            <div class="filter-nav">
+                <button class="filter-btn active" onclick="filterMode('all', this)">Overall Leaderboard</button>
+                <button class="filter-btn" onclick="filterMode('axe', this)">Axe</button>
+                <button class="filter-btn" onclick="filterMode('crystal', this)">Crystal</button>
+                <button class="filter-btn" onclick="filterMode('mace', this)">Mace</button>
+                <button class="filter-btn" onclick="filterMode('sword', this)">Sword</button>
+                <button class="filter-btn" onclick="filterMode('spear', this)">Spear</button>
+            </div>
+
             <div class="table-wrapper">
-                <table>
+                <table id="leaderboardTable">
                     <thead>
                         <tr>
                             <th>#</th>
                             <th>Player</th>
                             <th>Server</th>
-                            <th>Axe</th>
-                            <th>Crystal</th>
-                            <th>Mace</th>
-                            <th>Sword</th>
-                            <th>Total Pts</th>
+                            <th class="col-mode col-axe">Axe</th>
+                            <th class="col-mode col-crystal">Crystal</th>
+                            <th class="col-mode col-mace">Mace</th>
+                            <th class="col-mode col-sword">Sword</th>
+                            <th class="col-mode col-spear">Spear</th>
+                            <th class="col-pts">Total Pts</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${playersData.length > 0 ? playersData.map((p, index) => `
-                            <tr>
-                                <td><strong>#${index + 1}</strong></td>
+                            <tr class="player-row" 
+                                data-axe="${p.tiers.axe}" 
+                                data-crystal="${p.tiers.crystal}" 
+                                data-mace="${p.tiers.mace}" 
+                                data-sword="${p.tiers.sword}" 
+                                data-spear="${p.tiers.spear}" 
+                                data-pts="${p.totalPoints}">
+                                <td class="rank-num"><strong>#${index + 1}</strong></td>
                                 <td>
                                     <div class="player-info">
                                         <img src="https://visage.surgeplay.com/bust/64/${encodeURIComponent(p.ign)}" class="player-skin" onerror="this.src='${p.avatar}'">
@@ -432,21 +491,66 @@ app.get('/', async (req, res) => {
                                     </div>
                                 </td>
                                 <td><span style="color: var(--subtext);">${p.server}</span></td>
-                                <td><span class="tier-badge tier-${p.tiers.axe}">${p.tiers.axe}</span></td>
-                                <td><span class="tier-badge tier-${p.tiers.crystal}">${p.tiers.crystal}</span></td>
-                                <td><span class="tier-badge tier-${p.tiers.mace}">${p.tiers.mace}</span></td>
-                                <td><span class="tier-badge tier-${p.tiers.sword}">${p.tiers.sword}</span></td>
-                                <td><span class="pts">${p.totalPoints} pts</span></td>
+                                <td class="col-mode col-axe"><span class="tier-badge tier-${p.tiers.axe}">${p.tiers.axe}</span></td>
+                                <td class="col-mode col-crystal"><span class="tier-badge tier-${p.tiers.crystal}">${p.tiers.crystal}</span></td>
+                                <td class="col-mode col-mace"><span class="tier-badge tier-${p.tiers.mace}">${p.tiers.mace}</span></td>
+                                <td class="col-mode col-sword"><span class="tier-badge tier-${p.tiers.sword}">${p.tiers.sword}</span></td>
+                                <td class="col-mode col-spear"><span class="tier-badge tier-${p.tiers.spear}">${p.tiers.spear}</span></td>
+                                <td class="col-pts"><span class="pts">${p.totalPoints} pts</span></td>
                             </tr>
                         `).join('') : `
                             <tr>
-                                <td colspan="8" style="text-align: center; padding: 40px; color: var(--subtext);">No verified players found in database yet.</td>
+                                <td colspan="9" style="text-align: center; padding: 40px; color: var(--subtext);">No verified players found in database yet.</td>
                             </tr>
                         `}
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <script>
+            function filterMode(mode, btn) {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const allModes = ['axe', 'crystal', 'mace', 'sword', 'spear'];
+                const rows = document.querySelectorAll('.player-row');
+
+                if (mode === 'all') {
+                    document.querySelectorAll('.col-mode').forEach(col => col.style.display = '');
+                    document.querySelectorAll('.col-pts').forEach(col => col.style.display = '');
+
+                    rows.forEach(row => {
+                        row.style.display = '';
+                    });
+                } else {
+                    allModes.forEach(m => {
+                        const show = (m === mode);
+                        document.querySelectorAll('.col-' + m).forEach(col => {
+                            col.style.display = show ? '' : 'none';
+                        });
+                    });
+                    document.querySelectorAll('.col-pts').forEach(col => col.style.display = 'none');
+
+                    rows.forEach(row => {
+                        const tier = row.getAttribute('data-' + mode);
+                        if (tier && tier !== 'None') {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                }
+
+                let visibleCount = 1;
+                rows.forEach(row => {
+                    if (row.style.display !== 'none') {
+                        row.querySelector('.rank-num').innerHTML = '<strong>#' + visibleCount + '</strong>';
+                        visibleCount++;
+                    }
+                });
+            }
+        </script>
     </body>
     </html>
     `;
@@ -506,7 +610,8 @@ client.once('clientReady', async () => {
                         { name: 'Axe', value: 'axe' },
                         { name: 'Crystal', value: 'crystal' },
                         { name: 'Mace', value: 'mace' },
-                        { name: 'Sword', value: 'sword' }
+                        { name: 'Sword', value: 'sword' },
+                        { name: 'Spear', value: 'spear' }
                     )
             ),
 
@@ -568,7 +673,8 @@ client.once('clientReady', async () => {
                         { name: 'Axe', value: 'axe' },
                         { name: 'Crystal', value: 'crystal' },
                         { name: 'Mace', value: 'mace' },
-                        { name: 'Sword', value: 'sword' }
+                        { name: 'Sword', value: 'sword' },
+                        { name: 'Spear', value: 'spear' }
                     )
             ),
 
@@ -583,7 +689,8 @@ client.once('clientReady', async () => {
                         { name: 'Axe', value: 'axe' },
                         { name: 'Crystal', value: 'crystal' },
                         { name: 'Mace', value: 'mace' },
-                        { name: 'Sword', value: 'sword' }
+                        { name: 'Sword', value: 'sword' },
+                        { name: 'Spear', value: 'spear' }
                     )
             ),
 
@@ -598,7 +705,8 @@ client.once('clientReady', async () => {
                         { name: 'Axe', value: 'axe' },
                         { name: 'Crystal', value: 'crystal' },
                         { name: 'Mace', value: 'mace' },
-                        { name: 'Sword', value: 'sword' }
+                        { name: 'Sword', value: 'sword' },
+                        { name: 'Spear', value: 'spear' }
                     )
             )
     ];
@@ -1125,7 +1233,7 @@ client.on('interactionCreate', async (interaction) => {
 
             const ticketEmbed = new EmbedBuilder()
                 .setTitle(`${categoryData.name} Tier Test`)
-                .setDescription(`Welcome <@${pulledPlayer.userId}>! Your test with <@${interaction.user.id}> is ready to start.\n\n**Tester Controls:**\n- Click **Close with Tier** to assign a new rank (LT5 to HT4) and close this ticket.\n- Click **Close** to discard without changing tiers.`)
+                .setDescription(`Welcome <@${pulledPlayer.userId}>! Your test with <@${interaction.user.id}> is ready to start.\n\n**Tester Controls:**\n- Click **Close with Tier** to assign a new rank (LT5 to LT3) and close this ticket.\n- Click **Close** to discard without changing tiers.`)
                 .addFields(
                     { name: 'Minecraft IGN:', value: `\`${userVerification.ign}\``, inline: true },
                     { name: 'Preferred Server:', value: `${userVerification.server}`, inline: true }
@@ -1407,18 +1515,17 @@ client.on('interactionCreate', async (interaction) => {
             await closeChannelWithTranscript(interaction.channel, interaction.guild, interaction.user, true);
         }
 
-        // Test Ticket: Close With Tier Button
+        // Test Ticket: Close With Tier Button (LT5, HT5, LT4, HT4, LT3)
         if (interaction.customId === 'test_ticket_close_tier') {
             const topic = interaction.channel.topic || '';
             const categoryMatch = topic.match(/Category: (\w+)/);
             const categoryKey = categoryMatch ? categoryMatch[1].toLowerCase() : 'axe';
-            const isHighTicket = interaction.channel.name.startsWith('high-test-');
 
             if (!TIER_ROLES[categoryKey]) {
                 return interaction.reply({ content: `Close with Tier is not configured for category: ${categoryKey}.`, flags: 64 });
             }
 
-            const availableTiers = isHighTicket ? HIGH_TIERS : LOW_TIERS;
+            const availableTiers = ['LT5', 'HT5', 'LT4', 'HT4', 'LT3'];
 
             const selectOptions = availableTiers.map(t => 
                 new StringSelectMenuOptionBuilder().setLabel(t).setValue(t)
@@ -1553,7 +1660,7 @@ client.on('interactionCreate', async (interaction) => {
                 return interaction.reply({ content: 'Could not resolve tested player from channel topic.', flags: 64 });
             }
 
-            if (HIGH_TIERS.includes(selectedTier)) {
+            if (HIGH_TIERS.includes(selectedTier) && selectedTier !== 'LT3') {
                 pendingHighTierTests.set(interaction.user.id, {
                     selectedTier,
                     ownerId,
