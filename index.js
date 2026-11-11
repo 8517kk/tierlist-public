@@ -1427,8 +1427,13 @@ client.on('interactionCreate', async (interaction) => {
 
         // START QUEUE
         if (interaction.commandName === 'startqueue') {
-            const categoryKey = interaction.options.getString('category');
+            const rawCategory = interaction.options.getString('category');
+            const categoryKey = rawCategory ? rawCategory.toLowerCase() : null;
             const categoryData = QUEUE_CATEGORIES[categoryKey];
+
+            if (!categoryData) {
+                return interaction.reply({ content: '❌ Invalid category specified.', flags: 64 });
+            }
 
             if (!interaction.member.roles.cache.has(categoryData.testerRole)) {
                 return interaction.reply({ content: `You need the <@&${categoryData.testerRole}> role to start the ${categoryData.name} queue.`, flags: 64 });
@@ -1442,8 +1447,13 @@ client.on('interactionCreate', async (interaction) => {
 
         // CLOSE QUEUE
         if (interaction.commandName === 'closequeue') {
-            const categoryKey = interaction.options.getString('category');
+            const rawCategory = interaction.options.getString('category');
+            const categoryKey = rawCategory ? rawCategory.toLowerCase() : null;
             const categoryData = QUEUE_CATEGORIES[categoryKey];
+
+            if (!categoryData) {
+                return interaction.reply({ content: '❌ Invalid category specified.', flags: 64 });
+            }
 
             if (!interaction.member.roles.cache.has(categoryData.testerRole)) {
                 return interaction.reply({ content: `You need the <@&${categoryData.testerRole}> role to close the ${categoryData.name} queue.`, flags: 64 });
@@ -1474,10 +1484,11 @@ client.on('interactionCreate', async (interaction) => {
         // NEXT
         if (interaction.commandName === 'next') {
             const specificCategory = interaction.options.getString('category');
+            const categoryKey = specificCategory ? specificCategory.toLowerCase() : null;
 
             let indexToPull = -1;
-            if (specificCategory) {
-                indexToPull = queueState.queueList.findIndex(item => item.categoryKey === specificCategory);
+            if (categoryKey) {
+                indexToPull = queueState.queueList.findIndex(item => item.categoryKey === categoryKey);
             } else {
                 indexToPull = 0;
             }
@@ -1848,7 +1859,7 @@ client.on('interactionCreate', async (interaction) => {
         
         // High Tier Test Category Selection & Automated Check
         if (interaction.customId === 'hightest_category_select') {
-            const categoryKey = interaction.values[0];
+            const categoryKey = interaction.values[0].toLowerCase();
             const categoryData = QUEUE_CATEGORIES[categoryKey];
             const categoryTierRoles = TIER_ROLES[categoryKey];
 
@@ -1906,7 +1917,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.customId === 'queue_category_select') {
-            const categoryKey = interaction.values[0];
+            const categoryKey = interaction.values[0].toLowerCase();
 
             if (queueState.queueList.some(item => item.userId === interaction.user.id)) {
                 return interaction.update({ content: 'You are already in the queue!', components: [] });
